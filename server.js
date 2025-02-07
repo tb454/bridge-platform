@@ -1,41 +1,58 @@
-// server.js (or a new file like ai-generator.js if you want to keep it modular)
+// server.js
+require('dotenv').config(); // Load environment variables from .env
+
+// Log the API key to verify it's loaded (for debugging purposes)
+console.log("API Key:", process.env.OPENAI_API_KEY);
+
 const express = require('express');
-const axios = require('axios'); // Ensure axios is installed
+const axios = require('axios');
 const app = express();
-const port = 3030; // Or your preferred port for the backend
+
+// Set the port to 3030 (or whichever you want to use)
+const port = 3030;
 
 app.use(express.json());
 
-// Test route to check if the server is running
+// Test route to verify the server is running
 app.get('/', (req, res) => {
-  res.send('Hello from the Express server!');
+  res.send('Hello from Express on port 3030!');
 });
 
-// Endpoint to generate code/architecture using AI
+// Endpoint to generate code/architecture using OpenAI's API
 app.post('/api/generate', async (req, res) => {
-  const { prompt } = req.body; // Get the high-level requirement prompt
+  const { projectDescription, features, constraints } = req.body;
+  
+  // Construct a detailed prompt for the AI
+  const aiPrompt = `You are a software architect. Based on the following requirements:
+  
+Project Description: ${projectDescription}
+Desired Features: ${features}
+Constraints: ${constraints}
+
+Generate a detailed architectural design and code scaffold for this project.`;
+
   try {
-    // Call the AI API (example with OpenAI's API)
-    // Adjust the URL, model, and headers based on your provider's current documentation.
     const aiResponse = await axios.post(
-      'https://api.openai.com/v1/engines/code-davinci-002/completions',
+      'https://api.openai.com/v1/chat/completions',
       {
-        prompt: `Generate code and architectural design for: ${prompt}`,
-        max_tokens: 500,      // Adjust based on desired output length
-        temperature: 0.7,     // Control creativity (0.0 to 1.0)
+        model: "gpt-4", // Change this to "gpt-3.5-turbo" if needed
+        messages: [
+          { role: "user", content: aiPrompt }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
       },
       {
         headers: {
-          'Authorization': `Bearer YOUR_OPENAI_API_KEY`,  // Replace with your actual API key
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         }
       }
     );
-    // Extract the generated output
-    const generatedOutput = aiResponse.data.choices[0].text;
+    const generatedOutput = aiResponse.data.choices[0].message.content;
     res.json({ output: generatedOutput });
   } catch (error) {
-    console.error('Error generating output:', error.response ? error.response.data : error);
+    console.error('Error generating output:', error.response ? JSON.stringify(error.response.data) : error.message);
     res.status(500).json({ error: 'Failed to generate output' });
   }
 });
